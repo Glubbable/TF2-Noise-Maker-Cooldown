@@ -112,7 +112,14 @@ public Action OnClientCommandKeyValues(int iClient, KeyValues hKeyValue)
 			float flGameTime = GetGameTime();
 			if (g_flNoiseMakerCooldown[iClient] > flGameTime)
 			{
-				aAction = (g_tfTeam != TFTeam_Spectator && TF2_GetClientTeam(iClient) == g_tfTeam) ? Plugin_Handled : Plugin_Continue;
+				if (g_tfTeam != TFTeam_Spectator)
+				{
+					aAction = (TF2_GetClientTeam(iClient) == g_tfTeam) ? Plugin_Handled : Plugin_Continue;
+				}
+				else
+				{
+					aAction = Plugin_Handled;
+				}
 			}
 			else
 			{
@@ -133,7 +140,7 @@ public Action Event_PostInventoryApplication(Event eEvent, const char[] sName, b
 	}
 }
 
-void CheckClientActionSlot(int iClient, float flTime = 0.1)
+void CheckClientActionSlot(int iClient, float flTime = 0.5)
 {
 	g_hActionSlotCheckTimer[iClient] = CreateTimer(flTime, Timer_CheckActionSlot, GetClientUserId(iClient), TIMER_FLAG_NO_MAPCHANGE);
 }
