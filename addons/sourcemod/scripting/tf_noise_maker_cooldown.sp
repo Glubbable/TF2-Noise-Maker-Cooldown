@@ -12,7 +12,6 @@
 #define PLUGIN_AUTH	"Glubbable"
 #define PLUGIN_URL	"https://steamcommunity.com/groups/GlubsServers"
 
-#define TFWeaponSlot_Action 9
 #define TFAttribute_NoiseMaker 196
 
 public const Plugin myinfo =
@@ -39,7 +38,7 @@ TFTeam g_tfTeam;
 public void OnPluginStart()
 {
 	g_cvNMEnable = CreateConVar("sm_noisemaker_cooldown_enable", "1", "Enables/Disables Noise Maker Cooldown", _, true, _, true, 1.0);
-	g_cvNMCooldown = CreateConVar("sm_noisemaker_cooldown", "3.0", "How long a cooldown on a noise maker should last for.", _, true);
+	g_cvNMCooldown = CreateConVar("sm_noisemaker_cooldown", "5.0", "How long a cooldown on a noise maker should last for.", _, true);
 	g_cvNMTeam = CreateConVar("sm_noisemaker_cooldown_team", "0","Determins if the cooldown applies to all or just one team.", _, true, _, true, 2.0);
 	
 	g_cvNMEnable.AddChangeHook(Hook_OnCvarChange);
@@ -101,25 +100,26 @@ public void Hook_OnCvarChange(ConVar cvConVar, const char[] sOldValue, const cha
 
 public Action OnClientCommandKeyValues(int iClient, KeyValues hKeyValue)
 {
-	Action aAction = Plugin_Continue;
+	if (!g_bEnable || g_flCoolDown <= 0.0) return Plugin_Handled;
 	
 	char sName[64];
 	hKeyValue.GetSectionName(sName, sizeof(sName));
-	if (strcmp(sName, "+use_action_slot_item_server") == 0)
+	if (strcmp(sName, "use_action_slot_item_server") == 0)
 	{
-		if (g_bEnable && g_flCoolDown > 0.0 && g_bClientHasNoiseMaker[iClient])
+		if (g_bClientHasNoiseMaker[iClient])
 		{
 			float flGameTime = GetGameTime();
 			if (g_flNoiseMakerCooldown[iClient] > flGameTime)
 			{
 				if (g_tfTeam != TFTeam_Spectator)
 				{
-					aAction = (TF2_GetClientTeam(iClient) == g_tfTeam) ? Plugin_Handled : Plugin_Continue;
+					if (TF2_GetClientTeam(iClient) == g_tfTeam)
+						return Plugin_Handled;
+					
+					return Plugin_Continue;
 				}
-				else
-				{
-					aAction = Plugin_Handled;
-				}
+
+				return Plugin_Handled;
 			}
 			else
 			{
@@ -128,7 +128,7 @@ public Action OnClientCommandKeyValues(int iClient, KeyValues hKeyValue)
 		}
 	}
 	
-	return aAction;
+	return Plugin_Continue;
 }
 
 public Action Event_PostInventoryApplication(Event eEvent, const char[] sName, bool bDB)
@@ -151,13 +151,27 @@ public Action Timer_CheckActionSlot(Handle hTimer, int iUserid)
 	if (!iClient || iClient > MaxClients) return Plugin_Stop;
 	if (g_hActionSlotCheckTimer[iClient] != hTimer) return Plugin_Stop;
 	
-	int iItem = GetPlayerWeaponSlot(iClient, TFWeaponSlot_Action);
-	if (IsValidEntity(iItem))
-	{
-		g_bClientHasNoiseMaker[iClient] = (TF2_WeaponFindAttribute(iItem, TFAttribute_NoiseMaker) > 0.0) ? true : false;
-	}
+	int iItem = TF2_FindNoiseMaker(iClient);
+	g_bClientHasNoiseMaker[iClient] = (iItem > MaxClients) ? true : false;
 	
 	return Plugin_Stop;
+}
+
+stock int TF2_FindNoiseMaker(int iClient)
+{
+	int iEntity = MaxClients + 1;
+	while ((iEntity = FindEntityByClassname(iEntity, "tf_wearable")) > MaxClients)
+	{
+		if (GetEntPropEnt(iEntity, Prop_Send, "m_hOwnerEntity") == iClient)
+		{
+			if (TF2_WeaponFindAttribute(iEntity, TFAttribute_NoiseMaker) > 0.0)
+			{
+				return iEntity;
+			}
+		}
+	}
+	
+	return -1;
 }
 
 stock float TF2_WeaponFindAttribute(int iWeapon, int iAttrib)
