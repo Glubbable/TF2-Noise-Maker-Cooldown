@@ -100,7 +100,7 @@ public void Hook_OnCvarChange(ConVar cvConVar, const char[] sOldValue, const cha
 
 public Action OnClientCommandKeyValues(int iClient, KeyValues hKeyValue)
 {
-	if (!g_bEnable || g_flCoolDown <= 0.0) return Plugin_Handled;
+	if (!g_bEnable || g_flCoolDown <= 0.0) return Plugin_Continue;
 	
 	char sName[64];
 	hKeyValue.GetSectionName(sName, sizeof(sName));
